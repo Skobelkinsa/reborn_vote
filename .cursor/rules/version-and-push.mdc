@@ -1,0 +1,12 @@
+---
+description: Bump the extension version on every change and push it to GitHub
+alwaysApply: true
+---
+
+# Version and push
+
+On every code change in this project:
+
+- Bump `version` in `manifest.json` before finishing. Patch (`1.1.1` → `1.1.2`) for a fix, minor for a new behavior. Do not leave the version unchanged.
+- Keep the same version string in `popup/popup.html` (`#version`), so the loaded build is visible in the popup.
+- Commit the change and push it to `origin` (`https://github.com/Skobelkinsa/reborn_vote.git`) in the same turn. Do not force-push.

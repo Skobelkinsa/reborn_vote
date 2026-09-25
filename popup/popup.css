@@ -47,6 +47,10 @@ label {
   color: #d9cbb3;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 select, input[type="number"] {
   width: 100%;
   margin-top: 4px;

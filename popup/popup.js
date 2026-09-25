@@ -10,6 +10,10 @@ const statusEl = document.getElementById("status");
 let catalog = { servers: [], byServer: {} };
 let settings = {};
 
+if (typeof chrome !== "undefined" && chrome.runtime?.getManifest) {
+  document.getElementById("version").textContent = chrome.runtime.getManifest().version;
+}
+
 init();
 
 async function init() {
