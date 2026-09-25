@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Reborn Vote</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="mark"></div>
+    <div>
+      <h1>Настройки</h1>
+      <p>Reborn Vote · 12h Exp Rune</p>
+    </div>
+  </header>
+
+  <label class="switch">
+    <input id="enabled" type="checkbox">
+    <span>Проверять автоматически</span>
+  </label>
+
+  <label>
+    Сервер
+    <select id="server"></select>
+  </label>
+  <label>
+    Аккаунт
+    <select id="account"></select>
+  </label>
+  <label>
+    Персонаж
+    <select id="character"></select>
+  </label>
+  <label>
+    Периодичность
+    <select id="interval">
+      <option value="60">Каждый час</option>
+      <option value="360">Каждые 6 часов</option>
+      <option value="720" selected>Каждые 12 часов</option>
+      <option value="custom">Свой интервал</option>
+    </select>
+  </label>
+  <label id="custom-wrap" hidden>
+    Минуты
+    <input id="custom-minutes" type="number" min="30" max="1440" step="1" value="60">
+  </label>
+
+  <div id="auth" class="auth" hidden>
+    <p>Сессия личного кабинета закончилась.</p>
+    <button id="login" type="button">Войти в Reborn Shop</button>
+  </div>
+
+  <div class="actions">
+    <button id="run" type="button">Проголосовать сейчас</button>
+    <button id="refresh" type="button" class="ghost">Обновить списки</button>
+  </div>
+  <button id="history" type="button" class="ghost history">История запросов</button>
+
+  <p id="status" class="status">Нажмите «Обновить списки», будучи залогиненным на l2reborn.org.</p>
+  <p id="hint" class="hint">Запросы уходят сразу, без формы и без ожидания 60 секунд. Награда на сайте — раз в 12 часов. Сессию кабинета нужно обновлять примерно раз в неделю.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

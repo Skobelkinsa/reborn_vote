@@ -1,0 +1,124 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", sans-serif;
+  background: #16130f;
+  color: #f3ead8;
+}
+
+body {
+  width: 320px;
+  margin: 0;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #e8c460 0 28%, #1c1812 30% 72%, #d4a84a 74% 100%);
+}
+
+h1, p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 16px;
+}
+
+header p, .hint, .status {
+  color: #b7aa94;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+label {
+  display: block;
+  margin: 10px 0;
+  font-size: 12px;
+  color: #d9cbb3;
+}
+
+select, input[type="number"] {
+  width: 100%;
+  margin-top: 4px;
+  box-sizing: border-box;
+  background: #241f18;
+  color: #f3ead8;
+  border: 1px solid #3c3428;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch input {
+  margin: 0;
+}
+
+.auth {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #6a5730;
+  border-radius: 8px;
+}
+
+.auth p {
+  margin-bottom: 8px;
+}
+
+.auth button {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+button.history {
+  width: 100%;
+  margin-top: 8px;
+}
+
+button {
+  flex: 1;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 8px;
+  background: #e0b85a;
+  color: #1b160f;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button.ghost {
+  background: transparent;
+  color: #e0b85a;
+  border: 1px solid #6a5730;
+}
+
+.status {
+  margin-top: 12px;
+}
+
+.hint {
+  margin-top: 6px;
+}
+
+.status.ok { color: #9dce8a; }
+.status.error { color: #e08b7a; }
+.status.running, .status.waiting { color: #e0b85a; }
