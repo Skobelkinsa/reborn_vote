@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>История запросов — Reborn Vote</title>
+  <link rel="stylesheet" href="history.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>История запросов</h1>
+      <p>Токены и сессия сюда не записываются.</p>
+    </div>
+    <button id="clear" type="button">Очистить</button>
+  </header>
+  <table>
+    <thead>
+      <tr>
+        <th>Время</th>
+        <th>Шаг</th>
+        <th>Сервер</th>
+        <th>Аккаунт</th>
+        <th>Персонаж</th>
+        <th>Результат</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p id="empty">Запросов пока нет.</p>
+  <script src="history.js"></script>
+</body>
+</html>
