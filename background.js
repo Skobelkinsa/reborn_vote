@@ -105,6 +105,7 @@ async function startRun(source) {
       message: error.message || "Не удалось получить награду"
     };
     if (error.auth) await promptLogin(error.message);
+    if (error.cloudflare) await showSiteTab();
     await finishRun(result);
     return result;
   }
@@ -118,7 +119,7 @@ async function claimReward(settings, source) {
     character: settings.characterName
   };
   const catalog = await loadCatalog();
-  if (!catalog.ok) throw authError(catalog.message);
+  if (!catalog.ok) throw catalogError(catalog);
 
   const characterId = resolveCharacterId(catalog.catalog, settings);
   if (!characterId) throw new Error("Персонаж не найден на этом аккаунте");
@@ -138,16 +139,16 @@ async function claimReward(settings, source) {
   });
   if (!token) throw new Error(tokenResp?.data?.message || "Не удалось получить токен голосования");
 
-  const validate = await fetch(
-    "https://l2reborn.org/fast_vote.php?action=l2mgm_validate_vip_token&token=" + encodeURIComponent(token),
-    { credentials: "include" }
+  const validate = await siteRequest(
+    "https://l2reborn.org/fast_vote.php?action=l2mgm_validate_vip_token&token=" + encodeURIComponent(token)
   );
   await pushHistory({
     ...meta,
     step: "Подтверждение голоса",
-    ok: validate.ok,
+    ok: validate.ok && !isChallenge(validate),
     message: "HTTP " + validate.status
   });
+  if (isChallenge(validate)) throw cloudflareError(validate.status);
 
   const claim = await ajaxPost({
     action: "l2mgm_donation_service_v2",
@@ -175,6 +176,20 @@ async function claimReward(settings, source) {
 function authError(message) {
   const error = new Error(message);
   error.auth = true;
+  return error;
+}
+
+function catalogError(catalog) {
+  const error = catalog.auth ? authError(catalog.message) : new Error(catalog.message);
+  if (catalog.cloudflare) error.cloudflare = true;
+  return error;
+}
+
+function cloudflareError(status) {
+  const error = new Error(
+    "Cloudflare отклонил запрос (HTTP " + status + "). Откройте l2reborn.org, обновите страницу и повторите."
+  );
+  error.cloudflare = true;
   return error;
 }
 
@@ -213,7 +228,11 @@ async function loadCatalog() {
   try {
     payload = await ajaxGet({ action: "l2mgm_account", section: "shop" });
   } catch (error) {
-    return { ok: false, message: "Нет связи с l2reborn.org" };
+    return {
+      ok: false,
+      cloudflare: !!error.cloudflare,
+      message: error.message || "Нет связи с l2reborn.org"
+    };
   }
   if (!payload?.success) {
     await pushHistory({ source: "catalog", step: "Аккаунты", ok: false, message: "Нужно войти заново" });
@@ -248,18 +267,146 @@ async function loadCatalog() {
 async function ajaxGet(params) {
   const url = new URL(AJAX);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
-  const response = await fetch(url, { credentials: "include" });
-  return response.json();
+  return readJson(await siteRequest(url.toString()));
 }
 
 async function ajaxPost(params) {
-  const response = await fetch(AJAX, {
+  return readJson(await siteRequest(AJAX, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "X-Requested-With": "XMLHttpRequest"
+    },
+    body: new URLSearchParams(params).toString()
+  }));
+}
+
+function readJson(result) {
+  if (isChallenge(result)) throw cloudflareError(result.status);
+  try {
+    return JSON.parse(result.text);
+  } catch {
+    throw new Error("Сайт вернул не JSON (HTTP " + result.status + ")");
+  }
+}
+
+function isChallenge(result) {
+  if (!result) return false;
+  const text = (result.text || "").trim();
+  if (text.startsWith("{") || text.startsWith("[")) return false;
+  return result.status === 403 || (result.status >= 400 && text.startsWith("<"));
+}
+
+async function siteRequest(url, options = {}) {
+  const tab = await ensureSiteTab();
+  let injected;
+  try {
+    injected = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: "MAIN",
+      func: pageFetch,
+      args: [url, {
+        method: options.method || "GET",
+        headers: options.headers || {},
+        body: options.body || ""
+      }]
+    });
+  } catch {
+    throw new Error("Не удалось выполнить запрос со страницы l2reborn.org. Откройте сайт и обновите вкладку.");
+  }
+  const result = injected?.[0]?.result;
+  if (!result) throw new Error("Страница l2reborn.org не ответила");
+  if (result.error) throw new Error("Запрос со страницы не выполнился: " + result.error);
+  return result;
+}
+
+function pageFetch(requestUrl, requestInit) {
+  const init = {
+    method: requestInit.method || "GET",
     credentials: "include",
-    headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
-    body: new URLSearchParams(params)
+    headers: requestInit.headers || {}
+  };
+  if (requestInit.body) init.body = requestInit.body;
+  return fetch(requestUrl, init).then(async (response) => {
+    const text = await response.text();
+    const trimmed = text.trim();
+    const jsonLike = trimmed.startsWith("{") || trimmed.startsWith("[");
+    return {
+      ok: response.ok,
+      status: response.status,
+      text: jsonLike ? text : trimmed.slice(0, 240)
+    };
+  }).catch((error) => ({
+    ok: false,
+    status: 0,
+    text: "",
+    error: error && error.message ? error.message : String(error)
+  }));
+}
+
+async function ensureSiteTab() {
+  const tabs = await chrome.tabs.query({ url: "https://l2reborn.org/*" });
+  if (!tabs.length) {
+    const created = await chrome.tabs.create({ url: "https://l2reborn.org/shop/", active: false });
+    await waitForTab(created.id);
+    return chrome.tabs.get(created.id);
+  }
+  const tab = tabs.find((item) => item.status === "complete" && !item.discarded) || tabs[0];
+  if (tab.discarded || tab.status !== "complete") await reloadAndWait(tab.id);
+  return chrome.tabs.get(tab.id);
+}
+
+async function showSiteTab() {
+  const tabs = await chrome.tabs.query({ url: "https://l2reborn.org/*" });
+  const tab = tabs[0] || await chrome.tabs.create({ url: "https://l2reborn.org/shop/", active: true });
+  if (tab.windowId) await chrome.windows.update(tab.windowId, { focused: true });
+  await chrome.tabs.update(tab.id, { active: true });
+}
+
+function waitForTab(tabId) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      reject(new Error("Страница l2reborn.org не загрузилась"));
+    }, 20000);
+    function finish() {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve();
+    }
+    function onUpdated(id, info) {
+      if (id === tabId && info.status === "complete") finish();
+    }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.tabs.get(tabId).then((tab) => {
+      if (tab.status === "complete" && !tab.discarded) finish();
+    }).catch((error) => {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      reject(error);
+    });
   });
-  return response.json();
+}
+
+function reloadAndWait(tabId) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      reject(new Error("Страница l2reborn.org не загрузилась"));
+    }, 20000);
+    function onUpdated(id, info) {
+      if (id !== tabId || info.status !== "complete") return;
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve();
+    }
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.tabs.reload(tabId).catch((error) => {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      reject(error);
+    });
+  });
 }
 
 async function finishRun(msg) {
