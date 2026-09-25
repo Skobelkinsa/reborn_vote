@@ -55,9 +55,29 @@ function bind() {
     chrome.tabs.create({ url: chrome.runtime.getURL("history/history.html") });
   });
   document.getElementById("refresh").addEventListener("click", async () => {
+    const button = document.getElementById("refresh");
+    button.disabled = true;
     setStatusText("Загружаю аккаунты из кабинета…", "waiting");
-    const response = await chrome.runtime.sendMessage({ type: "REFRESH_CATALOG" });
-    if (response && !response.ok) setStatusText(response.message, "error");
+    try {
+      const response = await chrome.runtime.sendMessage({ type: "REFRESH_CATALOG" });
+      if (!response) {
+        setStatusText("Расширение не ответило. Закройте окно и откройте снова.", "error");
+        return;
+      }
+      if (!response.ok) {
+        setStatusText(response.message || "Не удалось обновить списки", response.auth ? "auth" : "error");
+        return;
+      }
+      if (response.catalog) {
+        catalog = response.catalog;
+        fillServers();
+      }
+      setStatusText(response.message || "Списки обновлены.", "ok");
+    } catch (error) {
+      setStatusText(error?.message || "Не удалось обновить списки", "error");
+    } finally {
+      button.disabled = false;
+    }
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
